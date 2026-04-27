@@ -22,6 +22,15 @@ from rich.prompt import Confirm
 from rich.status import Status
 
 from agent_tools.checkpoint import (
+    STEP_COMPLETED,
+    STEP_COPILOT_APPLY_COMPLETED,
+    STEP_COPILOT_APPLY_REQUESTED,
+    STEP_COPILOT_REVIEW_COMPLETED,
+    STEP_COPILOT_REVIEW_REQUESTED,
+    STEP_INIT,
+    STEP_JULES_SESSION_COMPLETED,
+    STEP_JULES_SESSION_CREATED,
+    STEP_MERGED,
     Checkpoint,
     get_checkpoint_path,
     load_checkpoint,
@@ -44,10 +53,12 @@ console = Console()
 
 
 def _parse_owner_repo(repository: str) -> tuple[str, str]:
-    """Split ``owner/repo`` into a ``(owner, repo)`` tuple."""
+    """Split owner/repo into a (owner, repo) tuple."""
     parts = repository.split("/", 1)
     if len(parts) != 2 or not all(parts):
-        raise ValueError(f"Invalid repository format {repository!r}. Expected 'owner/repo'.")
+        raise ValueError(
+            f"Invalid repository format {repository!r}. Expected 'owner/repo'."
+        )
     return parts[0], parts[1]
 
 
@@ -56,11 +67,11 @@ def _poll_jules_session(
     session_name: str,
     polling_rate: int,
 ) -> dict[str, Any]:
-    """Poll a Jules session until it reaches a terminal state.
-
-    Returns the final session dict.
-    """
-    with Status("[bold cyan]Waiting for Jules to open a PR…", console=console) as status:
+    """Poll a Jules session until it reaches a terminal state."""
+    with Status(
+        "[bold cyan]Waiting for Jules to open a PR...",
+        console=console,
+    ) as status:
         while True:
             session = jules.get_session(session_name)
             state: str = session.get("state", "unknown")
@@ -79,16 +90,16 @@ def _poll_copilot_review(
     pr_number: int,
     polling_rate: int,
 ) -> dict[str, Any] | None:
-    """Poll until Copilot has submitted a review.
-
-    Returns the review dict, or ``None`` if no review was found.
-    """
-    with Status("[bold cyan]Waiting for Copilot review…", console=console) as status:
+    """Poll until Copilot has submitted a review."""
+    with Status(
+        "[bold cyan]Waiting for Copilot review...",
+        console=console,
+    ) as status:
         while True:
             review = github.get_latest_copilot_review(owner, repo, pr_number)
             if review and review.get("state", "") not in ("PENDING",):
                 return review
-            status.update("[bold cyan]Copilot review still pending…")
+            status.update("[bold cyan]Copilot review still pending...")
             time.sleep(polling_rate)
 
 
@@ -101,7 +112,10 @@ def _poll_copilot_apply(
     polling_rate: int,
 ) -> None:
     """Poll check runs until Copilot's apply-suggestions run completes."""
-    with Status("[bold cyan]Waiting for Copilot to apply comments…", console=console) as status:
+    with Status(
+        "[bold cyan]Waiting for Copilot to apply comments...",
+        console=console,
+    ) as status:
         while True:
             runs = github.list_check_runs_for_ref(owner, repo, head_sha)
             copilot_runs = [
@@ -111,7 +125,9 @@ def _poll_copilot_apply(
                 or "copilot" in (r.get("name", "") or "").lower()
             ]
             if copilot_runs:
-                all_done = all(r.get("status") == "completed" for r in copilot_runs)
+                all_done = all(
+                    r.get("status") == "completed" for r in copilot_runs
+                )
                 if all_done:
                     return
             status.update(
@@ -127,6 +143,11 @@ def _poll_copilot_apply(
 # ---------------------------------------------------------------------------
 
 
+def _should_run_step(checkpoint: Checkpoint, step: str) -> bool:
+    """Check if a step should be run based on checkpoint state."""
+    return checkpoint.can_resume_at_step(step)
+
+
 def _load_or_create_checkpoint(
     repository: str,
     branch: str,
@@ -139,8 +160,8 @@ def _load_or_create_checkpoint(
     """Load existing checkpoint or create a new one.
 
     Returns a tuple of (checkpoint, is_resuming).
-    - checkpoint: The loaded or newly created checkpoint
-    - is_resuming: True if resuming from an existing checkpoint, False if starting fresh
+    checkpoint: The loaded or newly created checkpoint
+    is_resuming: True if resuming from an existing checkpoint
     """
     if checkpoint_path is None:
         checkpoint_path = get_checkpoint_path()
@@ -148,31 +169,29 @@ def _load_or_create_checkpoint(
     # If restart flag is set, remove any existing checkpoint
     if restart and checkpoint_path.exists():
         remove_checkpoint(checkpoint_path)
-        is_resuming = False
-    else:
-        # Try to load existing checkpoint
-        checkpoint = load_checkpoint(checkpoint_path)
-        if checkpoint is not None:
-            # Check if checkpoint is compatible with current parameters
-            current_params = {
-                "repository": repository,
-                "branch": branch,
-                "agent": agent,
-                "prompt": prompt,
-                "max_cycles": max_cycles,
-            }
-            if checkpoint.is_compatible(current_params):
-                console.print(
-                    f"[bold yellow]⏎ Resuming from checkpoint at cycle {checkpoint.current_cycle + 1}/{checkpoint.max_cycles}[/]"
-                )
-                return checkpoint, True
-            else:
-                console.print(
-                    "[bold yellow]⚠ Existing checkpoint is not compatible with current parameters. "
-                    "Starting fresh.[/]"
-                )
 
-        is_resuming = False
+    # Try to load existing checkpoint
+    checkpoint = load_checkpoint(checkpoint_path)
+    if checkpoint is not None:
+        # Check if checkpoint is compatible with current parameters
+        current_params = {
+            "repository": repository,
+            "branch": branch,
+            "agent": agent,
+            "prompt": prompt,
+            "max_cycles": max_cycles,
+        }
+        if checkpoint.is_compatible(current_params):
+            console.print(
+                f"[bold yellow] Resuming from checkpoint "
+                f"at cycle {checkpoint.current_cycle + 1}, "
+                f"step: {checkpoint.current_step}[/]"
+            )
+            return checkpoint, True
+        console.print(
+            "[bold yellow] Existing checkpoint is not compatible "
+            "with current parameters. Starting fresh.[/]"
+        )
 
     # Create a new checkpoint
     checkpoint = Checkpoint(
@@ -183,6 +202,7 @@ def _load_or_create_checkpoint(
         max_cycles=max_cycles,
         current_cycle=0,
         completed_cycles=0,
+        current_step=STEP_INIT,
     )
     return checkpoint, False
 
@@ -229,153 +249,216 @@ def run_single_cycle(
 ) -> bool:
     """Execute a single refine-loop cycle.
 
-    Returns ``True`` if the cycle completed successfully (PR was merged),
-    ``False`` if it should be skipped or the user declined to merge.
+    Returns True if the cycle completed successfully (PR was merged),
+    False if it should be skipped or the user declined to merge.
     """
     owner, repo = _parse_owner_repo(repository)
     console.rule(f"[bold blue]Cycle {cycle_number}")
 
-    # ------------------------------------------------------------------
     # Step 1: Create Jules session
-    # ------------------------------------------------------------------
-    console.print(
-        f"[bold green]→[/] Creating Jules session for "
-        f"[cyan]{repository}[/] on branch [cyan]{branch}[/]"
-    )
-
-    # Find the source ID for this repository
-    source_id = jules.find_source_id(owner, repo)
-    if not source_id:
+    if _should_run_step(checkpoint, STEP_JULES_SESSION_CREATED):
         console.print(
-            f"[bold red]✗ Could not find Jules source for repository {repository}[/]"
+            f"[bold green]->[/] Creating Jules session for "
+            f"[cyan]{repository}[/] on branch [cyan]{branch}[/]"
         )
-        return False
 
-    try:
-        session = jules.create_session(
-            source=source_id,
-            starting_branch=branch,
-            prompt=prompt,
-        )
-    except httpx.HTTPError as exc:
-        console.print(f"[bold red]✗ Failed to create Jules session:[/] {exc}")
-        return False
+        # Find the source ID for this repository
+        source_id = jules.find_source_id(owner, repo)
+        if not source_id:
+            console.print(
+                f"[bold red]Could not find Jules source "
+                f"for repository {repository}[/]"
+            )
+            return False
 
-    # The session name is in format "sessions/{id}"
-    session_name: str = session.get("name", "")
-    session_id: str = session.get("id", "")
-    console.print(f"  Session ID: [dim]{session_id}[/]")
-
-    # ------------------------------------------------------------------
-    # Step 2: Poll until PR opens (or session pauses)
-    # ------------------------------------------------------------------
-    try:
-        final_session = _poll_jules_session(jules, session_name, polling_rate)
-    except httpx.HTTPError as exc:
-        console.print(f"[bold red]✗ Error polling Jules session:[/] {exc}")
-        return False
-
-    final_state: str = final_session.get("state", "unknown")
-
-    # Check if we're in a terminal state without a PR
-    if final_state not in PR_STATES:
-        console.print(
-            f"[bold yellow]⚠ Jules session reached terminal state {final_state!r} "
-            f"without opening a PR. Skipping cycle.[/]"
-        )
-        return False
-
-    # Extract PR information from session outputs
-    pr_url, pr_number = jules.extract_pr_info(final_session)
-
-    if pr_number is None:
-        console.print(
-            f"[bold red]✗ Jules did not return a PR number (state={final_state!r}). "
-            f"Skipping cycle.[/]"
-        )
-        return False
-
-    console.print(f"[bold green]✓ PR opened:[/] {pr_url}")
-
-    # ------------------------------------------------------------------
-    # Step 3: Ask Copilot to review
-    # ------------------------------------------------------------------
-    console.print("[bold green]→[/] Requesting Copilot code review…")
-    try:
-        github.request_copilot_review(owner, repo, pr_number)
-    except httpx.HTTPError as exc:
-        console.print(f"[bold yellow]⚠ Could not request Copilot review:[/] {exc}")
-        # Non-fatal – continue without automated review
-
-    # ------------------------------------------------------------------
-    # Step 4: Monitor Copilot review session
-    # ------------------------------------------------------------------
-    review: dict[str, Any] | None = None
-    try:
-        review = _poll_copilot_review(github, owner, repo, pr_number, polling_rate)
-    except httpx.HTTPError as exc:
-        console.print(f"[bold yellow]⚠ Error monitoring Copilot review:[/] {exc}")
-
-    if review:
-        review_state = review.get("state", "unknown")
-        console.print(f"[bold green]✓ Copilot review complete:[/] state={review_state!r}")
-    else:
-        console.print("[bold yellow]⚠ No Copilot review found; proceeding.[/]")
-
-    # ------------------------------------------------------------------
-    # Step 5: Ask Copilot to apply comments (if any)
-    # ------------------------------------------------------------------
-    try:
-        comments = github.list_review_comments(owner, repo, pr_number)
-    except httpx.HTTPError as exc:
-        console.print(f"[bold yellow]⚠ Could not list review comments:[/] {exc}")
-        comments = []
-
-    if comments:
-        console.print(f"[bold green]→[/] Asking Copilot to apply {len(comments)} comment(s)…")
         try:
-            github.request_copilot_apply_comments(owner, repo, pr_number)
+            session = jules.create_session(
+                source=source_id,
+                starting_branch=branch,
+                prompt=prompt,
+            )
         except httpx.HTTPError as exc:
-            console.print(f"[bold yellow]⚠ Could not trigger Copilot apply:[/] {exc}")
+            console.print(f"[bold red]Failed to create Jules session:[/] {exc}")
+            return False
 
-        # Step 6: Monitor comment resolution
-        pr_meta = github.get_pull_request(owner, repo, pr_number)
-        head_sha: str = pr_meta.get("head", {}).get("sha", "")
-        if head_sha:
+        # The session name is in format "sessions/{id}"
+        session_name: str = session.get("name", "")
+        session_id: str = session.get("id", "")
+        console.print(f"  Session ID: [dim]{session_id}[/]")
+
+        # Update checkpoint
+        checkpoint.set_step(STEP_JULES_SESSION_CREATED)
+        checkpoint.last_session_name = session_name
+        _save_checkpoint(checkpoint, checkpoint_path)
+    else:
+        session_name = checkpoint.last_session_name
+        if not session_name:
+            console.print("[bold red]No session name in checkpoint![/]")
+            return False
+        console.print(
+            f"[bold yellow]Resuming from existing session: {session_name}[/]"
+        )
+
+    # Step 2: Poll until PR opens
+    if _should_run_step(checkpoint, STEP_JULES_SESSION_COMPLETED):
+        final_session = _poll_jules_session(jules, session_name, polling_rate)
+
+        final_state: str = final_session.get("state", "unknown")
+
+        # Check if we are in a terminal state without a PR
+        if final_state not in PR_STATES:
+            console.print(
+                f"[bold yellow]Jules session reached terminal state "
+                f"{final_state!r} without opening a PR. Skipping cycle.[/]"
+            )
+            return False
+
+        # Extract PR information from session outputs
+        pr_url, pr_number = jules.extract_pr_info(final_session)
+
+        if pr_number is None:
+            console.print(
+                f"[bold red]Jules did not return a PR number "
+                f"(state={final_state!r}). Skipping cycle.[/]"
+            )
+            return False
+
+        console.print(f"[bold green]PR opened:[/] {pr_url}")
+
+        # Update checkpoint
+        checkpoint.set_step(STEP_JULES_SESSION_COMPLETED)
+        checkpoint.last_pr_url = pr_url
+        checkpoint.last_pr_number = pr_number
+        _save_checkpoint(checkpoint, checkpoint_path)
+    else:
+        pr_url = checkpoint.last_pr_url
+        pr_number = checkpoint.last_pr_number
+        if pr_number is None:
+            console.print("[bold red]No PR number in checkpoint![/]")
+            return False
+        console.print(f"[bold yellow]Resuming with existing PR: {pr_url}[/]")
+
+    # Step 3: Ask Copilot to review
+    if _should_run_step(checkpoint, STEP_COPILOT_REVIEW_REQUESTED):
+        console.print("[bold green]->[/] Requesting Copilot code review...")
+        try:
+            github.request_copilot_review(owner, repo, pr_number)
+        except httpx.HTTPError as exc:
+            console.print(
+                f"[bold yellow]Could not request Copilot review:[/] {exc}"
+            )
+
+        checkpoint.set_step(STEP_COPILOT_REVIEW_REQUESTED)
+        _save_checkpoint(checkpoint, checkpoint_path)
+
+    # Step 4: Monitor Copilot review session
+    if _should_run_step(checkpoint, STEP_COPILOT_REVIEW_COMPLETED):
+        review: dict[str, Any] | None = None
+        try:
+            review = _poll_copilot_review(
+                github, owner, repo, pr_number, polling_rate
+            )
+        except httpx.HTTPError as exc:
+            console.print(f"[bold yellow]Error monitoring Copilot review:[/] {exc}")
+
+        if review:
+            review_state = review.get("state", "unknown")
+            console.print(
+                f"[bold green]Copilot review complete:[/] "
+                f"state={review_state!r}"
+            )
+        else:
+            console.print("[bold yellow]No Copilot review found; proceeding.[/]")
+
+        checkpoint.set_step(STEP_COPILOT_REVIEW_COMPLETED)
+        _save_checkpoint(checkpoint, checkpoint_path)
+
+    # Step 5: Ask Copilot to apply comments (if any)
+    if _should_run_step(checkpoint, STEP_COPILOT_APPLY_REQUESTED):
+        try:
+            comments = github.list_review_comments(owner, repo, pr_number)
+        except httpx.HTTPError as exc:
+            console.print(f"[bold yellow]Could not list review comments:[/] {exc}")
+            comments = []
+
+        if comments:
+            console.print(
+                f"[bold green]->[/] Asking Copilot to apply "
+                f"{len(comments)} comment(s)..."
+            )
             try:
-                _poll_copilot_apply(github, owner, repo, pr_number, head_sha, polling_rate)
-                console.print("[bold green]✓ Copilot comment resolution done.[/]")
+                github.request_copilot_apply_comments(owner, repo, pr_number)
             except httpx.HTTPError as exc:
-                console.print(f"[bold yellow]⚠ Error monitoring Copilot apply:[/] {exc}")
-    else:
-        console.print("[dim]No review comments to apply.[/]")
+                console.print(
+                    f"[bold yellow]Could not trigger Copilot apply:[/] {exc}"
+                )
 
-    # ------------------------------------------------------------------
+            checkpoint.set_step(STEP_COPILOT_APPLY_REQUESTED)
+            _save_checkpoint(checkpoint, checkpoint_path)
+        else:
+            console.print("[dim]No review comments to apply.[/]")
+            # Skip to apply completed since there's nothing to apply
+            checkpoint.set_step(STEP_COPILOT_APPLY_COMPLETED)
+            _save_checkpoint(checkpoint, checkpoint_path)
+
+    # Step 6: Monitor comment resolution
+    if _should_run_step(checkpoint, STEP_COPILOT_APPLY_COMPLETED):
+        try:
+            comments = github.list_review_comments(owner, repo, pr_number)
+        except httpx.HTTPError as exc:
+            console.print(f"[bold yellow]Could not list review comments:[/] {exc}")
+            comments = []
+
+        if comments:
+            pr_meta = github.get_pull_request(owner, repo, pr_number)
+            head_sha: str = pr_meta.get("head", {}).get("sha", "")
+            if head_sha:
+                try:
+                    _poll_copilot_apply(
+                        github, owner, repo, pr_number, head_sha, polling_rate
+                    )
+                    console.print(
+                        "[bold green]Copilot comment resolution done.[/]"
+                    )
+                except httpx.HTTPError as exc:
+                    console.print(
+                        f"[bold yellow]Error monitoring Copilot apply:[/] {exc}"
+                    )
+
+        checkpoint.set_step(STEP_COPILOT_APPLY_COMPLETED)
+        _save_checkpoint(checkpoint, checkpoint_path)
+
     # Step 7: Merge confirmation & merge
-    # ------------------------------------------------------------------
-    console.print(f"\n[bold]PR ready:[/] {pr_url}")
+    if _should_run_step(checkpoint, STEP_MERGED):
+        console.print(f"\n[bold]PR ready:[/] {pr_url}")
 
-    if automerge:
-        do_merge = True
-        console.print("[dim](automerge enabled – merging automatically)[/]")
-    else:
-        do_merge = Confirm.ask("Merge this PR?", default=True)
+        if automerge:
+            do_merge = True
+            console.print(
+                "[dim](automerge enabled - merging automatically)[/]"
+            )
+        else:
+            do_merge = Confirm.ask("Merge this PR?", default=True)
 
-    if not do_merge:
-        console.print("[bold yellow]⚠ Merge declined. Moving to next cycle.[/]")
-        return False
+        if not do_merge:
+            console.print(
+                "[bold yellow]Merge declined. Moving to next cycle.[/]"
+            )
+            return False
 
-    try:
-        github.merge_pull_request(owner, repo, pr_number)
-        console.print("[bold green]✓ PR merged successfully.[/]")
-    except httpx.HTTPError as exc:
-        console.print(f"[bold red]✗ Failed to merge PR:[/] {exc}")
-        return False
+        try:
+            github.merge_pull_request(owner, repo, pr_number)
+            console.print("[bold green]PR merged successfully.[/]")
+        except httpx.HTTPError as exc:
+            console.print(f"[bold red]Failed to merge PR:[/] {exc}")
+            return False
 
-    # Update checkpoint state
-    checkpoint.last_session_name = session_name
-    checkpoint.last_pr_url = pr_url
-    checkpoint.last_pr_number = pr_number
+        checkpoint.set_step(STEP_MERGED)
+        _save_checkpoint(checkpoint, checkpoint_path)
+
+    # Mark cycle as completed
+    checkpoint.set_step(STEP_COMPLETED)
+    _save_checkpoint(checkpoint, checkpoint_path)
 
     return True
 
@@ -402,42 +485,27 @@ def refine_loop(
 
     Parameters
     ----------
-    jules:
-        Jules REST API client.
-    github:
-        GitHub REST API client.
-    repository:
-        Target GitHub repository in owner/repo format.
-    branch:
-        Target branch for Jules to work against.
-    prompt:
-        The prompt to send to Jules.
-    max_cycles:
-        Maximum number of cycles to run.
-    polling_rate:
-        Seconds between poll requests.
-    automerge:
-        Whether to automatically merge without confirmation.
-    restart:
-        Whether to restart from scratch (ignore checkpoint).
-    checkpoint_path:
-        Optional path to the checkpoint file.
+    jules : Jules REST API client
+    github : GitHub REST API client
+    repository : Target GitHub repository in owner/repo format
+    branch : Target branch for Jules to work against
+    prompt : The prompt to send to Jules
+    max_cycles : Maximum number of cycles to run
+    polling_rate : Seconds between poll requests
+    automerge : Whether to automatically merge without confirmation
+    restart : Whether to restart from scratch (ignore checkpoint)
+    checkpoint_path : Optional path to the checkpoint file
     """
     # Load or create checkpoint
     checkpoint, is_resuming = _load_or_create_checkpoint(
         repository=repository,
         branch=branch,
-        agent="",  # Agent is not stored in checkpoint but used for compatibility check
+        agent="",
         prompt=prompt,
         max_cycles=max_cycles,
         checkpoint_path=checkpoint_path,
         restart=restart,
     )
-
-    # Update checkpoint with agent info (for future compatibility checks)
-    # Note: We set agent here because it might have been loaded from checkpoint
-    if checkpoint.agent == "" and is_resuming:
-        checkpoint.agent = "unknown"
 
     console.print(
         f"[bold]Starting refine-loop[/] for [cyan]{repository}[/] "
@@ -448,7 +516,8 @@ def refine_loop(
         completed = checkpoint.completed_cycles
         start_cycle = checkpoint.current_cycle + 1
         console.print(
-            f"[dim]Resuming from cycle {start_cycle} (completed {completed}/{max_cycles})[/]"
+            f"[dim]Resuming from cycle {start_cycle} "
+            f"(completed {completed}/{max_cycles})[/]"
         )
     else:
         completed = 0
@@ -456,6 +525,9 @@ def refine_loop(
 
     # Run cycles from start_cycle to max_cycles
     for cycle_number in range(start_cycle, max_cycles + 1):
+        # Update cycle info in checkpoint
+        checkpoint.current_cycle = cycle_number
+
         success = run_single_cycle(
             jules=jules,
             github=github,
@@ -469,15 +541,17 @@ def refine_loop(
             checkpoint_path=checkpoint_path,
         )
 
-        # Update checkpoint after each cycle
-        checkpoint.current_cycle = cycle_number
         if success:
             checkpoint.completed_cycles += 1
+            completed += 1
+
+            # Reset to init for next cycle
+            checkpoint.current_step = STEP_INIT
+            checkpoint.last_session_name = None
+            checkpoint.last_pr_url = None
+            checkpoint.last_pr_number = None
 
         _save_checkpoint(checkpoint, checkpoint_path)
-
-        if success:
-            completed += 1
 
     # Clean up checkpoint if we completed all cycles
     _cleanup_checkpoint(checkpoint, checkpoint_path)

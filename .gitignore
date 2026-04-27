@@ -217,3 +217,4 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 .aider*
+"\n# Checkpoint file\n.checkpoint.json"  
