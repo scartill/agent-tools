@@ -92,12 +92,8 @@ class Checkpoint:
             last_session_name=data.get("last_session_name"),
             last_pr_url=data.get("last_pr_url"),
             last_pr_number=data.get("last_pr_number"),
-            created_at=data.get(
-                "created_at", datetime.utcnow().isoformat()
-            ),
-            updated_at=data.get(
-                "updated_at", datetime.utcnow().isoformat()
-            ),
+            created_at=data.get("created_at", datetime.utcnow().isoformat()),
+            updated_at=data.get("updated_at", datetime.utcnow().isoformat()),
             version=data.get("version", 1),
         )
 
@@ -126,13 +122,12 @@ class Checkpoint:
     def is_compatible(self, params: dict[str, Any]) -> bool:
         """Check if this checkpoint is compatible with the given parameters.
 
-        A checkpoint is compatible if the repository, branch, agent, and max_cycles match.
+        A checkpoint is compatible if the repository, branch, prompt, and max_cycles match.
         This allows resuming an interrupted operation with the same configuration.
         """
         return (
             self.repository == params.get("repository")
             and self.branch == params.get("branch")
-            and self.agent == params.get("agent")
             and self.prompt == params.get("prompt")
             and self.max_cycles == params.get("max_cycles")
         )
