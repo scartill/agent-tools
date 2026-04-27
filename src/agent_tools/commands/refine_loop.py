@@ -40,6 +40,7 @@ from agent_tools.checkpoint import (
 from agent_tools.github_client import GitHubClient
 from agent_tools.jules_client import (
     PR_STATES,
+    STATE_AWAITING_USER_FEEDBACK,
     TERMINAL_STATES,
     JulesClient,
 )
@@ -60,6 +61,7 @@ def _parse_owner_repo(repository: str) -> tuple[str, str]:
             f"Invalid repository format {repository!r}. Expected 'owner/repo'."
         )
     return parts[0], parts[1]
+
 
 
 def _poll_jules_session(
@@ -234,6 +236,28 @@ def _cleanup_checkpoint(
 # ---------------------------------------------------------------------------
 
 
+def _step_description(step: str) -> str:
+    """Return a human-readable description for a step."""
+    step_descriptions = {
+        STEP_INIT: "Initialize cycle",
+        STEP_JULES_SESSION_CREATED: "Create Jules session",
+        STEP_JULES_SESSION_COMPLETED: "Wait for Jules to open PR",
+        STEP_COPILOT_REVIEW_REQUESTED: "Request Copilot code review",
+        STEP_COPILOT_REVIEW_COMPLETED: "Wait for Copilot review",
+        STEP_COPILOT_APPLY_REQUESTED: "Apply review comments",
+        STEP_COPILOT_APPLY_COMPLETED: "Wait for comment resolution",
+        STEP_MERGED: "Merge PR",
+        STEP_COMPLETED: "Complete cycle",
+    }
+    return step_descriptions.get(step, step)
+
+
+def _ask_confirmation(step: str) -> bool:
+    """Ask user for confirmation to proceed with a step."""
+    description = _step_description(step)
+    return Confirm.ask(f"Continue with step: {description}?", default=True)
+
+
 def run_single_cycle(
     *,
     jules: JulesClient,
@@ -243,6 +267,7 @@ def run_single_cycle(
     prompt: str,
     polling_rate: int,
     automerge: bool,
+    confirm: bool,
     cycle_number: int,
     checkpoint: Checkpoint,
     checkpoint_path: Path | None,
@@ -257,6 +282,10 @@ def run_single_cycle(
 
     # Step 1: Create Jules session
     if _should_run_step(checkpoint, STEP_JULES_SESSION_CREATED):
+        if confirm and not _ask_confirmation(STEP_JULES_SESSION_CREATED):
+            console.print("[bold yellow]Step skipped by user.[/]")
+            return False
+
         console.print(
             f"[bold green]->[/] Creating Jules session for "
             f"[cyan]{repository}[/] on branch [cyan]{branch}[/]"
@@ -301,9 +330,24 @@ def run_single_cycle(
 
     # Step 2: Poll until PR opens
     if _should_run_step(checkpoint, STEP_JULES_SESSION_COMPLETED):
+        if confirm and not _ask_confirmation(STEP_JULES_SESSION_COMPLETED):
+            console.print("[bold yellow]Step skipped by user.[/]")
+            return False
+
         final_session = _poll_jules_session(jules, session_name, polling_rate)
 
         final_state: str = final_session.get("state", "unknown")
+
+        # Handle AWAITING_USER_FEEDBACK state - inform user and wait
+        while final_state == STATE_AWAITING_USER_FEEDBACK:
+            console.print(
+                "[bold yellow]Jules session is AWAITING_USER_FEEDBACK.[/]"
+            )
+            console.print("  Please provide your feedback in the Jules UI.")
+            Confirm.ask("Have you provided feedback to Jules?", default=True)
+            # Continue polling after user confirms
+            final_session = _poll_jules_session(jules, session_name, polling_rate)
+            final_state = final_session.get("state", "unknown")
 
         # Check if we are in a terminal state without a PR
         if final_state not in PR_STATES:
@@ -340,6 +384,10 @@ def run_single_cycle(
 
     # Step 3: Ask Copilot to review
     if _should_run_step(checkpoint, STEP_COPILOT_REVIEW_REQUESTED):
+        if confirm and not _ask_confirmation(STEP_COPILOT_REVIEW_REQUESTED):
+            console.print("[bold yellow]Step skipped by user.[/]")
+            return False
+
         console.print("[bold green]->[/] Requesting Copilot code review...")
         try:
             github.request_copilot_review(owner, repo, pr_number)
@@ -353,6 +401,10 @@ def run_single_cycle(
 
     # Step 4: Monitor Copilot review session
     if _should_run_step(checkpoint, STEP_COPILOT_REVIEW_COMPLETED):
+        if confirm and not _ask_confirmation(STEP_COPILOT_REVIEW_COMPLETED):
+            console.print("[bold yellow]Step skipped by user.[/]")
+            return False
+
         review: dict[str, Any] | None = None
         try:
             review = _poll_copilot_review(
@@ -375,6 +427,10 @@ def run_single_cycle(
 
     # Step 5: Ask Copilot to apply comments (if any)
     if _should_run_step(checkpoint, STEP_COPILOT_APPLY_REQUESTED):
+        if confirm and not _ask_confirmation(STEP_COPILOT_APPLY_REQUESTED):
+            console.print("[bold yellow]Step skipped by user.[/]")
+            return False
+
         try:
             comments = github.list_review_comments(owner, repo, pr_number)
         except httpx.HTTPError as exc:
@@ -403,6 +459,10 @@ def run_single_cycle(
 
     # Step 6: Monitor comment resolution
     if _should_run_step(checkpoint, STEP_COPILOT_APPLY_COMPLETED):
+        if confirm and not _ask_confirmation(STEP_COPILOT_APPLY_COMPLETED):
+            console.print("[bold yellow]Step skipped by user.[/]")
+            return False
+
         try:
             comments = github.list_review_comments(owner, repo, pr_number)
         except httpx.HTTPError as exc:
@@ -430,6 +490,10 @@ def run_single_cycle(
 
     # Step 7: Merge confirmation & merge
     if _should_run_step(checkpoint, STEP_MERGED):
+        if confirm and not _ask_confirmation(STEP_MERGED):
+            console.print("[bold yellow]Step skipped by user.[/]")
+            return False
+
         console.print(f"\n[bold]PR ready:[/] {pr_url}")
 
         if automerge:
@@ -474,10 +538,12 @@ def refine_loop(
     github: GitHubClient,
     repository: str,
     branch: str,
+    agent: str,
     prompt: str,
     max_cycles: int,
     polling_rate: int,
     automerge: bool,
+    confirm: bool = False,
     restart: bool = False,
     checkpoint_path: Path | None = None,
 ) -> None:
@@ -489,10 +555,12 @@ def refine_loop(
     github : GitHub REST API client
     repository : Target GitHub repository in owner/repo format
     branch : Target branch for Jules to work against
+    agent : Agent name used for this run
     prompt : The prompt to send to Jules
     max_cycles : Maximum number of cycles to run
     polling_rate : Seconds between poll requests
     automerge : Whether to automatically merge without confirmation
+    confirm : Whether to ask for confirmation before each step
     restart : Whether to restart from scratch (ignore checkpoint)
     checkpoint_path : Optional path to the checkpoint file
     """
@@ -500,7 +568,7 @@ def refine_loop(
     checkpoint, is_resuming = _load_or_create_checkpoint(
         repository=repository,
         branch=branch,
-        agent="",
+        agent=agent,
         prompt=prompt,
         max_cycles=max_cycles,
         checkpoint_path=checkpoint_path,
@@ -513,12 +581,43 @@ def refine_loop(
     )
 
     if is_resuming:
+        # Determine the cycle to start from
+        # If we're in the middle of a cycle (current_step != init/completed),
+        # start from that cycle. Otherwise start from the next cycle.
+        if checkpoint.current_step not in (STEP_INIT, STEP_COMPLETED):
+            # We're in the middle of a cycle, start from current_cycle
+            start_cycle = checkpoint.current_cycle
+            if start_cycle >= max_cycles:
+                # The cycle we're in exceeds max_cycles, clamp it
+                start_cycle = max_cycles
+            console.print(
+                f"[dim]Resuming from cycle {start_cycle + 1} (in progress), "
+                f"step: {checkpoint.current_step}[/]"
+            )
+        else:
+            # We're at a cycle boundary, start from the next cycle
+            start_cycle = checkpoint.current_cycle + 1
+            if start_cycle > max_cycles:
+                console.print(
+                    f"[bold yellow]All {max_cycles} cycles already completed. "
+                    f"Starting fresh.[/]"
+                )
+                # Reset checkpoint for fresh start
+                checkpoint.current_cycle = 0
+                checkpoint.completed_cycles = 0
+                checkpoint.current_step = STEP_INIT
+                checkpoint.last_session_name = None
+                checkpoint.last_pr_url = None
+                checkpoint.last_pr_number = None
+                _save_checkpoint(checkpoint, checkpoint_path)
+                start_cycle = 1
+                is_resuming = False
+            else:
+                console.print(
+                    f"[dim]Resuming from cycle {start_cycle} "
+                    f"(completed {checkpoint.completed_cycles}/{max_cycles})[/]"
+                )
         completed = checkpoint.completed_cycles
-        start_cycle = checkpoint.current_cycle + 1
-        console.print(
-            f"[dim]Resuming from cycle {start_cycle} "
-            f"(completed {completed}/{max_cycles})[/]"
-        )
     else:
         completed = 0
         start_cycle = 1
@@ -536,6 +635,7 @@ def refine_loop(
             prompt=prompt,
             polling_rate=polling_rate,
             automerge=automerge,
+            confirm=confirm,
             cycle_number=cycle_number,
             checkpoint=checkpoint,
             checkpoint_path=checkpoint_path,
