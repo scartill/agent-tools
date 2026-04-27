@@ -117,6 +117,20 @@ def cli(
     show_default=True,
     help="Automatically merge each PR without asking for confirmation.",
 )
+@click.option(
+    "--restart",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Restart from scratch, ignoring any existing checkpoint file.",
+)
+@click.option(
+    "--checkpoint-path",
+    default=None,
+    help="Path to the checkpoint file (default: .checkpoint.json in current directory).",
+    metavar="PATH",
+    type=click.Path(exists=False, file_okay=True, dir_okay=False),
+)
 @click.pass_context
 def refine_loop_cmd(
     ctx: click.Context,
@@ -126,6 +140,8 @@ def refine_loop_cmd(
     max_cycles: int,
     polling_rate: int,
     automerge: bool,
+    restart: bool,
+    checkpoint_path: str | None,
 ) -> None:
     """Run the refine loop: Jules session → Copilot review → apply → merge."""
     obj: dict[str, Any] = ctx.obj
@@ -147,16 +163,13 @@ def refine_loop_cmd(
         )
         sys.exit(1)
 
-    with prompts_path.open() as fh:
-        prompts_data: dict[str, Any] = yaml.safe_load(fh) or {}
+    prompts_yaml = prompts_path.read_text(encoding="utf-8")
+    prompts_data: dict[str, Any] = yaml.safe_load(prompts_yaml)
 
     agents_cfg: dict[str, Any] = prompts_data.get("agents", {})
     if agent not in agents_cfg:
         available = ", ".join(agents_cfg.keys()) or "(none)"
-        console.print(
-            f"[bold red]Unknown agent {agent!r}.[/] "
-            f"Available agents: {available}"
-        )
+        console.print(f"[bold red]Unknown agent {agent!r}.[/] Available agents: {available}")
         sys.exit(1)
 
     prompt: str = agents_cfg[agent].get("prompt", "")
@@ -167,6 +180,10 @@ def refine_loop_cmd(
     # Build clients
     jules_client = JulesClient(api_key=jules_api_key)
     github_client = GitHubClient(pat=github_pat)
+
+    # Pass checkpoint configuration
+    restart_flag = restart
+    checkpoint_file = Path(checkpoint_path) if checkpoint_path else None
 
     # Run the loop
     from agent_tools.commands.refine_loop import refine_loop
@@ -180,6 +197,8 @@ def refine_loop_cmd(
         max_cycles=max_cycles,
         polling_rate=polling_rate,
         automerge=automerge,
+        restart=restart_flag,
+        checkpoint_path=checkpoint_file,
     )
 
 
