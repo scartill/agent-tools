@@ -1,0 +1,4 @@
+agents:
+   bolt:
+      prompt: |
+         <A prompt for the Bolt agent goes here>
