@@ -220,30 +220,30 @@ Each iteration of the loop executes the following steps:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Cycle N                                                      │
-│                                                               │
-│  1. Create Jules session (open-PR mode)                       │
-│     └─ repository, branch, prompt from prompts.yaml          │
-│                                                               │
-│  2. Poll Jules session                                        │
-│     ├─ running / queued  → keep polling                      │
-│     ├─ paused / error    → warn user, skip cycle             │
-│     └─ pr_open           → continue ↓                        │
-│                                                               │
-│  3. Request GitHub Copilot code review on the new PR         │
-│                                                               │
-│  4. Poll for Copilot review completion                        │
-│     └─ review submitted  → continue ↓                        │
-│                                                               │
-│  5. If review comments exist:                                 │
-│     a. Ask Copilot to apply suggestions                       │
-│     b. Poll check runs until apply completes                  │
-│                                                               │
-│  6. Merge gate                                                │
-│     ├─ --automerge       → merge immediately                 │
-│     └─ interactive       → prompt user for confirmation      │
-│                                                               │
-│  7. Merge PR (squash by default)                              │
+│  Cycle N                                                    │
+│                                                             │
+│  1. Create Jules session (open-PR mode)                     │
+│     └─ repository, branch, prompt from prompts.yaml         │
+│                                                             │
+│  2. Poll Jules session                                      │
+│     ├─ running / queued  → keep polling                     │
+│     ├─ paused / error    → warn user, skip cycle            │
+│     └─ pr_open           → continue ↓                       │
+│                                                             │
+│  3. Request GitHub Copilot code review on the new PR        │
+│                                                             │
+│  4. Poll for Copilot review completion                      │
+│     └─ review submitted  → continue ↓                       │
+│                                                             │
+│  5. If review comments exist:                               │
+│     a. Ask Copilot to apply suggestions                     │
+│     b. Poll check runs until apply completes                │
+│                                                             │
+│  6. Merge gate                                              │
+│     ├─ --automerge       → merge immediately                │
+│     └─ interactive       → prompt user for confirmation     │
+│                                                             │
+│  7. Merge PR (squash by default)                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
