@@ -32,7 +32,7 @@ The tool requires API credentials to interact with external services. You can pr
 
 Example `.env` file:
 
-```javascript
+```env
 JULES_API_KEY=your_jules_key
 GITHUB_PAT=your_github_token
 ```
@@ -79,8 +79,6 @@ Ensures that `AGENTS.md` in the current directory contains instructions for agen
 - Use `--workspace` or `-w` to specify a project-specific workspace.
 
 #### `memory mcp` (Server)
-
-
 Launches the Model Context Protocol (MCP) server that provides agents with tools to store and retrieve information.
 
 ### MCP Configuration Example
@@ -89,10 +87,13 @@ To use `agent-tools` as an MCP server in applications like Claude Desktop or oth
 
 #### 1. Install the tool
 
-````bash
+```bash
 uv tool install --editable .  # For local development
 # OR
-uv tool install agent-tools   # Once publ2. Configure your client
+uv tool install agent-tools   # Once published
+```
+
+#### 2. Configure your client
 
 Add this (or similar) to your MCP config JSON:
 
@@ -100,14 +101,12 @@ Add this (or similar) to your MCP config JSON:
 {
   "mcpServers": {
     "agent-tools-memory": {
-      "command": "uvx",
-      "args": ["path/to/gent-tools", "memory", "mcp"],
+      "command": "agent-tools",
+      "args": ["memory", "mcp"]
     }
   }
 }
-````
-
-*Note: If installed via uv tool install, you can simply use "command": "agent-tools".*
+```
 
 #### MCP Tools:
 
@@ -115,8 +114,8 @@ Add this (or similar) to your MCP config JSON:
    - `factoid_name`: A unique name for the factoid.
    - `factoid`: The content to store.
    - `location`: Scoped storage location:
-     - `global`: Stored in `~/.pin/` (available everywhere).
-     - `workspace/<name>`: Stored in `~/.pin/workspaces/<name>/`.
+     - `global`: Stored in `~/.scartill/pin/` (available everywhere).
+     - `workspace/<name>`: Stored in `~/.scartill/pin/workspaces/<name>/`.
      - `project`: Stored in `./.pin/` (local to the current directory).
 2. **recall**: Retrieve stored factoids.
    - `workspace`: (Optional) Name of the workspace to include.
