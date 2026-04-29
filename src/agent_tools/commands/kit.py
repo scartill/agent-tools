@@ -82,7 +82,7 @@ $ARGUMENTS
 ```
 """
 
-OPENCODE_MD = """
+OPENCODE_MD = """\
 ---
 descriptions: {description}
 ---
@@ -106,9 +106,21 @@ def _transform_to_kiro(name, description, prompt):
     # return path, md
 
 
+GEMINI_ARGUMENTS = """\
+{{args}}
+"""
+
+GEMINI_TOML = '''\
+description = "{description}"
+
+prompt = """
+{prompt}
+"""
+'''
+
+
 def _transform_to_gemini(name, description, prompt):
-    raise NotImplementedError("Gemini not implemented yet")
-    # path = Path(f".gemini/command/{name}.md")
-    # agent_prompt = prompt.replace("[<arguments>]", GEMINI_ARGUMENTS)
-    # md = GEMINI_MD.format(description=description, prompt=agent_prompt)
-    # return path, md
+    path = Path(f".gemini/commands/{name}.toml")
+    agent_prompt = prompt.replace("[<arguments>]", GEMINI_ARGUMENTS)
+    md = GEMINI_TOML.format(description=description, prompt=agent_prompt)
+    return path, md
