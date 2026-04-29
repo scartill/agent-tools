@@ -14,7 +14,7 @@ class MemoryManager:
     """Manages factoids stored in various scopes."""
 
     def __init__(self):
-        self.global_dir = Path.home() / ".pin"
+        self.global_dir = Path.home() / ".scartill" / "pin"
         self.workspaces_root = self.global_dir / "workspaces"
         self.project_dir = Path(".pin")
 
