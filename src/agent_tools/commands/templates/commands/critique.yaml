@@ -1,8 +1,0 @@
-command:
-    compatible:
-        - gemini
-        - kiro
-        - opencode
-    description: A tailored propmt for /speckit.superb.critique
-    prompt-file: critique.md
-

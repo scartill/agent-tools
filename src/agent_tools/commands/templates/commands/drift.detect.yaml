@@ -1,8 +1,0 @@
-command:
-    compatible:
-        - gemini
-        - kiro
-        - opencode
-    description: Detect a drift between manually modified code and existing specification.
-    prompt-file: drift.detect.md
-
