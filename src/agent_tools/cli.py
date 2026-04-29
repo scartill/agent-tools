@@ -1,3 +1,5 @@
+from importlib.metadata import version
+
 import click
 from rich.console import Console
 
@@ -9,6 +11,7 @@ console = Console()
 
 
 @click.group()
+@click.version_option(version=version("agent-tools"))
 @click.option(
     "--jules-api-key",
     envvar="JULES_API_KEY",

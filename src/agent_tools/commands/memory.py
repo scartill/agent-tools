@@ -96,18 +96,18 @@ def memory_mcp_cmd() -> None:
     manager = MemoryManager()
 
     @mcp.tool()
-    def pin(
-        factoid_name: str,
-        factoid: str,
-        location: Literal["global", "project"] | str = "global"
-    ) -> str:
+    def pin(factoid_name: str, factoid: str, location: Literal["global", "project"] | str) -> str:
         """Store a factoid in memory.
+
+        If asked to pin to a workspace, use "workspace/<name>" for location. Example: "workspace/my-workspace".
+
+        If asked to pin locally or for the current projects, use "project" for location.
 
         Args:
             factoid_name: The name of the factoid.
             factoid: The fact content.
             location: Where to store it ("global", "workspace/<name>", or "project").
-        """
+        """  # noqa
         return manager.pin(factoid_name, factoid, location)
 
     @mcp.tool()

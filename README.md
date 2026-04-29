@@ -1,10 +1,11 @@
 # agent-tools 🛠️
 
-`agent-tools` is a Python CLI suite designed to orchestrate AI-powered development workflows. It bridges the gap between high-level AI orchestration (like **Jules**) and local development environments, enabling automated coding sessions, performance optimizations, and smart code reviews.
+`agent-tools` is a Python CLI suite designed to orchestrate AI-powered development workflows. It bridges the gap between high-level AI orchestration (like **Jules**) and local development environments, enabling automated coding sessions, performance optimizations, and persistent memory for AI agents.
 
 ## Features
 
 - **Jules Integration**: Create and manage Jules coding sessions directly from your terminal.
+- **Persistent Memory (MCP)**: A Model Context Protocol (MCP) server for agents to "pin" and "recall" factoids across different scopes (Global, Workspace, Project).
 - **Agent Prompts**: Define specialized AI agents (like `bolt` for performance) with custom system prompts in a simple YAML configuration.
 
 ## Installation
@@ -49,9 +50,31 @@ agents:
 
 ## Usage
 
+### Memory (MCP Server)
+
+The `memory mcp` command launches a Model Context Protocol (MCP) server that provides agents with tools to store and retrieve information.
+
+```bash
+uv run agent-tools memory mcp
+```
+
+#### MCP Tools:
+
+1.  **`pin`**: Store a factoid.
+    *   `factoid_name`: A unique name for the factoid.
+    *   `factoid`: The content to store.
+    *   `location`: Scoped storage location:
+        *   `global`: Stored in `~/.pin/` (available everywhere).
+        *   `workspace/<name>`: Stored in `~/.pin/workspaces/<name>/`.
+        *   `project`: Stored in `./.pin/` (local to the current directory).
+
+2.  **`recall`**: Retrieve stored factoids.
+    *   `workspace`: (Optional) Name of the workspace to include.
+    *   **Returns**: A concatenation of Global factoids, Workspace factoids (if specified), and Project factoids (if present).
+
 ### Jules Commands
 
-Currently, the primary command is `jules create`, which starts a new automated coding session.
+Create an automated coding session.
 
 ```bash
 uv run agent-tools jules create \
@@ -73,6 +96,7 @@ uv run agent-tools jules create \
 - `src/agent_tools/config.py`: Configuration and environment management.
 - `src/agent_tools/clients/`: API clients for Jules and GitHub.
 - `src/agent_tools/commands/`: Implementation logic for CLI commands.
+  - `memory.py`: Implementation of the Memory MCP server.
 - `kit/`: Reusable tool definitions and prompts for agent-led workflows.
 
 ## Development
