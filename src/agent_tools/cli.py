@@ -3,6 +3,7 @@ from rich.console import Console
 
 from agent_tools.commands.jules import jules_group
 from agent_tools.commands.kit import kit_group
+from agent_tools.commands.memory import memory_group
 
 console = Console()
 
@@ -45,6 +46,7 @@ def cli(
 
 cli.add_command(jules_group)
 cli.add_command(kit_group)
+cli.add_command(memory_group)
 
 
 def main() -> None:
