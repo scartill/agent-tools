@@ -1,6 +1,7 @@
 .opencode
 .gemini
 .kiro
+.pin
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-PROMPTS_CONFIG_NAME = "prompts.yaml"
+PROMPTS_CONFIG_NAME = Path(__file__).parent / "prompts.yaml"
 
 
 def get_jules_api_key(override: str | None = None) -> str:
@@ -36,8 +36,7 @@ def get_github_pat(override: str | None = None) -> str:
     value = os.environ.get("GITHUB_PAT", "")
     if not value:
         raise ValueError(
-            "GITHUB_PAT is not set. "
-            "Set it in your environment, .env file, or pass --github-pat."
+            "GITHUB_PAT is not set. Set it in your environment, .env file, or pass --github-pat."
         )
     return value
 
