@@ -31,7 +31,8 @@ The tool requires API credentials to interact with external services. You can pr
 - `GITHUB_PAT`: GitHub Personal Access Token for repository interactions.
 
 Example `.env` file:
-```env
+
+```javascript
 JULES_API_KEY=your_jules_key
 GITHUB_PAT=your_github_token
 ```
@@ -50,27 +51,68 @@ agents:
 
 ## Usage
 
-### Memory (MCP Server)
+### Memory Management
 
-The `memory mcp` command launches a Model Context Protocol (MCP) server that provides agents with tools to store and retrieve information.
+Manage and inspect your persistent factoids.
 
 ```bash
+# List all factoids grouped by location
+uv run agent-tools memory show
+
+# Launch the MCP server
 uv run agent-tools memory mcp
 ```
 
+#### `memory show`
+
+Displays all stored factoids in a formatted view, grouped by:
+
+- **Global**: `~/.scartill/pin/`
+- **Workspaces**: `~/.scartill/pin/workspaces/<name>/`
+- **Local**: `./.pin/`
+
+#### `memory mcp` (Server)
+
+Launches the Model Context Protocol (MCP) server that provides agents with tools to store and retrieve information.
+
+### MCP Configuration Example
+
+To use `agent-tools` as an MCP server in applications like Claude Desktop or other MCP-compatible clients, it is recommended to install it globally using `uv`.
+
+#### 1. Install the tool
+
+````bash
+uv tool install --editable .  # For local development
+# OR
+uv tool install agent-tools   # Once publ2. Configure your client
+
+Add this (or similar) to your MCP config JSON:
+
+```json
+{
+  "mcpServers": {
+    "agent-tools-memory": {
+      "command": "uvx",
+      "args": ["path/to/gent-tools", "memory", "mcp"],
+    }
+  }
+}
+````
+
+*Note: If installed via uv tool install, you can simply use "command": "agent-tools".*
+
 #### MCP Tools:
 
-1.  **`pin`**: Store a factoid.
-    *   `factoid_name`: A unique name for the factoid.
-    *   `factoid`: The content to store.
-    *   `location`: Scoped storage location:
-        *   `global`: Stored in `~/.pin/` (available everywhere).
-        *   `workspace/<name>`: Stored in `~/.pin/workspaces/<name>/`.
-        *   `project`: Stored in `./.pin/` (local to the current directory).
-
-2.  **`recall`**: Retrieve stored factoids.
-    *   `workspace`: (Optional) Name of the workspace to include.
-    *   **Returns**: A concatenation of Global factoids, Workspace factoids (if specified), and Project factoids (if present).
+1. **pin**: Store a factoid.
+   - `factoid_name`: A unique name for the factoid.
+   - `factoid`: The content to store.
+   - `location`: Scoped storage location:
+     - `global`: Stored in `~/.pin/` (available everywhere).
+     - `workspace/<name>`: Stored in `~/.pin/workspaces/<name>/`.
+     - `project`: Stored in `./.pin/` (local to the current directory).
+2. **recall**: Retrieve stored factoids.
+   - `workspace`: (Optional) Name of the workspace to include.
+   - **Returns**: A concatenation of Global factoids, Workspace factoids (if specified), and Project factoids (if present).
 
 ### Jules Commands
 
@@ -85,6 +127,7 @@ uv run agent-tools jules create \
 ```
 
 **Options:**
+
 - `--repository`, `-r`: Target GitHub repository (owner/repo).
 - `--branch`, `-b`: Branch for Jules to work on.
 - `--agent`, `-a`: Name of the agent defined in `prompts.yaml`.
@@ -102,6 +145,7 @@ uv run agent-tools jules create \
 ## Development
 
 ### Running Tests & Linting
+
 ```bash
 # Lint with ruff
 uv run ruff check .
@@ -111,8 +155,9 @@ uv run ruff check --fix .
 ```
 
 ### Roadmap
-- [ ] Add `jules status` to track session progress.
-- [ ] Integration with GitHub Copilot Review API.
+
+- Add `jules status` to track session progress.
+- Integration with GitHub Copilot Review API.
 
 ## License
 

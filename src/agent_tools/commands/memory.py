@@ -69,13 +69,26 @@ class MemoryManager:
         results = []
         if target_dir.exists() and target_dir.is_dir():
             for file in sorted(target_dir.glob("*.md")):
-                try:
+                content = None
+                # Try common encodings
+                for enc in ["utf-8-sig", "utf-16", "latin-1"]:
+                    try:
+                        content = file.read_text(encoding=enc).strip()
+                        break
+                    except (UnicodeDecodeError, Exception):
+                        continue
+
+                if content is not None:
                     results.append({
                         "name": file.stem,
-                        "content": file.read_text(encoding="utf-8").strip()
+                        "content": content
                     })
-                except Exception:
-                    continue
+                else:
+                    # If we really can't read it, add a placeholder so user knows something is there
+                    results.append({
+                        "name": file.stem,
+                        "content": "[ERROR: Could not decode file content]"
+                    })
         return results
 
     def recall(self, workspace: Optional[str] = None) -> str:
