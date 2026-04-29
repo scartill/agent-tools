@@ -1,31 +1,29 @@
 """CLI entry point for agent-tools.
 
 Usage example:
-    agent-tools refine-loop \\
-        --repository owner/repo \\
-        --branch main \\
-        --agent bolt \\
-        --max-cycles 5 \\
-        --polling-rate 30
+    agent-tools jules create --repository owner/repo --branch main
 """
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 from typing import Any
+
 import click
 import yaml
 from rich.console import Console
+
 from agent_tools.config import get_github_pat, get_jules_api_key, get_prompts_path
 from agent_tools.github_client import GitHubClient
 from agent_tools.jules_client import JulesClient
+
 console = Console()
 
 
 # ---------------------------------------------------------------------------
 # Root group
 # ---------------------------------------------------------------------------
-
 
 
 @click.group()
@@ -64,14 +62,18 @@ def cli(
     ctx.obj["prompts_config"] = prompts_config
 
 
-
 # ---------------------------------------------------------------------------
-# refine-loop command
+# Jules command group
 # ---------------------------------------------------------------------------
 
 
+@cli.group("jules")
+def jules_group() -> None:
+    """Jules session management commands."""
+    pass
 
-@cli.command("refine-loop")
+
+@jules_group.command("create")
 @click.option(
     "--repository",
     "-r",
@@ -94,63 +96,21 @@ def cli(
     metavar="AGENT",
 )
 @click.option(
-    "--max-cycles",
-    "-n",
-    default=3,
-    show_default=True,
-    help="Maximum number of refine cycles to execute.",
-    type=click.IntRange(min=1),
-    metavar="N",
-)
-@click.option(
-    "--polling-rate",
-    default=30,
-    show_default=True,
-    help="Seconds to wait between status poll requests.",
-    type=click.IntRange(min=1),
-    metavar="SECONDS",
-)
-@click.option(
-    "--automerge/--no-automerge",
-    default=False,
-    show_default=True,
-    help="Automatically merge each PR without asking for confirmation.",
-)
-@click.option(
-    "--confirm",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="Ask for confirmation before each step.",
-)
-@click.option(
-    "--restart",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="Restart from scratch, ignoring any existing checkpoint file.",
-)
-@click.option(
-    "--checkpoint-path",
+    "--title",
+    "-t",
     default=None,
-    help="Path to the checkpoint file (default: .checkpoint.json in current directory).",
-    metavar="PATH",
-    type=click.Path(exists=False, file_okay=True, dir_okay=False),
+    help="Optional title for the session.",
+    metavar="TITLE",
 )
 @click.pass_context
-def refine_loop_cmd(
+def jules_create_cmd(
     ctx: click.Context,
     repository: str,
     branch: str,
     agent: str,
-    max_cycles: int,
-    polling_rate: int,
-    automerge: bool,
-    confirm: bool,
-    restart: bool,
-    checkpoint_path: str | None,
+    title: str | None,
 ) -> None:
-    """Run the refine loop: Jules session -> Copilot review -> apply -> merge."""
+    """Create a new Jules session."""
     obj: dict[str, Any] = ctx.obj
 
     # Resolve credentials
@@ -188,34 +148,49 @@ def refine_loop_cmd(
     jules_client = JulesClient(api_key=jules_api_key)
     github_client = GitHubClient(pat=github_pat)
 
-    # Pass checkpoint configuration
-    restart_flag = restart
-    checkpoint_file = Path(checkpoint_path) if checkpoint_path else None
+    # Parse repository
+    parts = repository.split("/", 1)
+    if len(parts) != 2 or not all(parts):
+        console.print(
+            f"[bold red]Invalid repository format {repository!r}.[/] Expected 'owner/repo'."
+        )
+        sys.exit(1)
+    owner, repo = parts
 
-    # Run the loop
-    from agent_tools.commands.refine_loop import refine_loop
+    # Find the source ID for this repository
+    source_id = jules_client.find_source_id(owner, repo)
+    if not source_id:
+        console.print(
+            f"[bold red]Could not find Jules source for repository {repository}[/]"
+        )
+        sys.exit(1)
 
-    refine_loop(
-        jules=jules_client,
-        github=github_client,
-        repository=repository,
-        branch=branch,
-        agent=agent,
-        prompt=prompt,
-        max_cycles=max_cycles,
-        polling_rate=polling_rate,
-        automerge=automerge,
-        confirm=confirm,
-        restart=restart_flag,
-        checkpoint_path=checkpoint_file,
+    console.print(
+        f"[bold green]->[/] Creating Jules session for [cyan]{repository}[/] "
+        f"on branch [cyan]{branch}[/]"
     )
 
+    try:
+        session = jules_client.create_session(
+            source=source_id,
+            starting_branch=branch,
+            prompt=prompt,
+            title=title,
+        )
+    except Exception as exc:
+        console.print(f"[bold red]Failed to create Jules session:[/] {exc}")
+        sys.exit(1)
+
+    session_name: str = session.get("name", "")
+    session_id: str = session.get("id", "")
+    console.print(f"[bold green]Session created successfully![/]")
+    console.print(f"  Session ID: [dim]{session_id}[/]")
+    console.print(f"  Session name: [dim]{session_name}[/]")
 
 
 # ---------------------------------------------------------------------------
 # Package entry point
 # ---------------------------------------------------------------------------
-
 
 
 def main() -> None:
