@@ -4,20 +4,16 @@ Usage example:
     agent-tools jules create --repository owner/repo --branch main --agent bolt
 """
 
-from __future__ import annotations
-
 import sys
 from pathlib import Path
 from typing import Any
 
 import click
+import rich
 import yaml
-from rich.console import Console
 
 from agent_tools import config
 from agent_tools.clients import jules_client
-
-console = Console()
 
 
 @click.group("jules")
@@ -71,13 +67,13 @@ def jules_create_cmd(
         jules_api_key = config.get_jules_api_key(obj.get("jules_api_key"))
         # github_pat = config.get_github_pat(obj.get("github_pat"))
     except ValueError as exc:
-        console.print(f"[bold red]Configuration error:[/] {exc}")
+        rich.print(f"[bold red]Configuration error:[/] {exc}")
         sys.exit(1)
 
     # Load prompts
     prompts_path: Path = config.get_prompts_path(obj.get("prompts_config"))
     if not prompts_path.exists():
-        console.print(
+        rich.print(
             f"[bold red]Prompts file not found:[/] {prompts_path}\n"
             "Create prompts.yaml or pass --prompts-config."
         )
@@ -89,12 +85,12 @@ def jules_create_cmd(
     agents_cfg: dict[str, Any] = prompts_data.get("agents", {})
     if agent not in agents_cfg:
         available = ", ".join(agents_cfg.keys()) or "(none)"
-        console.print(f"[bold red]Unknown agent {agent!r}.[/] Available agents: {available}")
+        rich.print(f"[bold red]Unknown agent {agent!r}.[/] Available agents: {available}")
         sys.exit(1)
 
     prompt: str = agents_cfg[agent].get("prompt", "")
     if not prompt.strip():
-        console.print(f"[bold red]Agent {agent!r} has an empty prompt.[/]")
+        rich.print(f"[bold red]Agent {agent!r} has an empty prompt.[/]")
         sys.exit(1)
 
     # Build clients
@@ -104,19 +100,17 @@ def jules_create_cmd(
     # Parse repository
     parts = repository.split("/", 1)
     if len(parts) != 2 or not all(parts):
-        console.print(
-            f"[bold red]Invalid repository format {repository!r}.[/] Expected 'owner/repo'."
-        )
+        rich.print(f"[bold red]Invalid repository format {repository!r}.[/] Expected 'owner/repo'.")
         sys.exit(1)
     owner, repo = parts
 
     # Find the source ID for this repository
     source_id = jules_client_instance.find_source_id(owner, repo)
     if not source_id:
-        console.print(f"[bold red]Could not find Jules source for repository {repository}[/]")
+        rich.print(f"[bold red]Could not find Jules source for repository {repository}[/]")
         sys.exit(1)
 
-    console.print(
+    rich.print(
         f"[bold green]->[/] Creating Jules session for [cyan]{repository}[/] "
         f"on branch [cyan]{branch}[/]"
     )
@@ -129,11 +123,11 @@ def jules_create_cmd(
             title=title,
         )
     except Exception as exc:
-        console.print(f"[bold red]Failed to create Jules session:[/] {exc}")
+        rich.print(f"[bold red]Failed to create Jules session:[/] {exc}")
         sys.exit(1)
 
     session_name: str = session.get("name", "")
     session_id: str = session.get("id", "")
-    console.print("[bold green]Session created successfully![/]")
-    console.print(f"  Session ID: [dim]{session_id}[/]")
-    console.print(f"  Session name: [dim]{session_name}[/]")
+    rich.print("[bold green]Session created successfully![/]")
+    rich.print(f"  Session ID: [dim]{session_id}[/]")
+    rich.print(f"  Session name: [dim]{session_name}[/]")

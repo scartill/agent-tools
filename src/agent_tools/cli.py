@@ -1,20 +1,10 @@
-"""CLI entry point for agent-tools.
-
-Usage example:
-    agent-tools jules create --repository owner/repo --branch main
-"""
-
 import click
 from rich.console import Console
 
 from agent_tools.commands.jules import jules_group
+from agent_tools.commands.kit import kit_group
 
 console = Console()
-
-
-# ---------------------------------------------------------------------------
-# Root group
-# ---------------------------------------------------------------------------
 
 
 @click.group()
@@ -53,17 +43,8 @@ def cli(
     ctx.obj["prompts_config"] = prompts_config
 
 
-# ---------------------------------------------------------------------------
-# Register command groups
-# ---------------------------------------------------------------------------
-
-
 cli.add_command(jules_group)
-
-
-# ---------------------------------------------------------------------------
-# Package entry point
-# ---------------------------------------------------------------------------
+cli.add_command(kit_group)
 
 
 def main() -> None:
