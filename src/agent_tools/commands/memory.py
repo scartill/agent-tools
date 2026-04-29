@@ -8,6 +8,8 @@ from typing import List, Literal, Optional
 
 import click
 from mcp.server.fastmcp import FastMCP
+from rich.console import Console
+from rich.table import Table
 
 
 class MemoryManager:
@@ -62,6 +64,20 @@ class MemoryManager:
                     continue
         return factoids
 
+    def _get_factoids(self, target_dir: Path) -> List[dict]:
+        """Get all factoids from a specific directory as list of dicts {name, content}."""
+        results = []
+        if target_dir.exists() and target_dir.is_dir():
+            for file in sorted(target_dir.glob("*.md")):
+                try:
+                    results.append({
+                        "name": file.stem,
+                        "content": file.read_text(encoding="utf-8").strip()
+                    })
+                except Exception:
+                    continue
+        return results
+
     def recall(self, workspace: Optional[str] = None) -> str:
         """Recall pinned factoids from global, optional workspace, and local project scopes."""
         all_factoids: List[str] = []
@@ -82,11 +98,60 @@ class MemoryManager:
 
         return "\n\n".join(all_factoids)
 
+    def list_all(self) -> dict:
+        """List all factoids grouped by location."""
+        results = {
+            "global": self._get_factoids(self.global_dir),
+            "workspaces": {},
+            "local": self._get_factoids(self.project_dir)
+        }
+
+        if self.workspaces_root.exists() and self.workspaces_root.is_dir():
+            for workspace_dir in sorted(self.workspaces_root.iterdir()):
+                if workspace_dir.is_dir():
+                    workspace_factoids = self._get_factoids(workspace_dir)
+                    if workspace_factoids:
+                        results["workspaces"][workspace_dir.name] = workspace_factoids
+
+        return results
+
 
 @click.group("memory")
 def memory_group() -> None:
     """Memory management commands."""
     pass
+
+
+@memory_group.command("show")
+def memory_show_cmd() -> None:
+    """List all factoids grouped by location (global, workspaces, and local)."""
+    manager = MemoryManager()
+    all_factoids = manager.list_all()
+    console = Console()
+
+    def print_section(title: str, factoids: List[dict]):
+        if not factoids:
+            return
+        table = Table(title=title, show_header=True, header_style="bold magenta", box=None)
+        table.add_column("Name", style="cyan", no_wrap=True)
+        table.add_column("Content", style="green")
+        for f in factoids:
+            table.add_row(f["name"], f["content"])
+        console.print(table)
+        console.print()
+
+    # 1. Global
+    print_section("Global Factoids", all_factoids["global"])
+
+    # 2. Workspaces
+    for ws_name, ws_factoids in sorted(all_factoids["workspaces"].items()):
+        print_section(f"Workspace: {ws_name}", ws_factoids)
+
+    # 3. Local
+    print_section("Local Project Factoids", all_factoids["local"])
+
+    if not all_factoids["global"] and not all_factoids["workspaces"] and not all_factoids["local"]:
+        console.print("[yellow]No factoids found in memory.[/yellow]")
 
 
 @memory_group.command("mcp")
