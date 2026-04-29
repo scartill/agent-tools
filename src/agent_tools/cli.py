@@ -15,8 +15,8 @@ import yaml
 from rich.console import Console
 
 from agent_tools.config import get_github_pat, get_jules_api_key, get_prompts_path
-from agent_tools.github_client import GitHubClient
-from agent_tools.jules_client import JulesClient
+from agent_tools.clients.github_client import GitHubClient
+from agent_tools.clients.jules_client import JulesClient
 
 console = Console()
 
@@ -160,9 +160,7 @@ def jules_create_cmd(
     # Find the source ID for this repository
     source_id = jules_client.find_source_id(owner, repo)
     if not source_id:
-        console.print(
-            f"[bold red]Could not find Jules source for repository {repository}[/]"
-        )
+        console.print(f"[bold red]Could not find Jules source for repository {repository}[/]")
         sys.exit(1)
 
     console.print(
