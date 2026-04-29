@@ -98,12 +98,24 @@ def _transform_to_opencode(name, description, prompt):
     return path, md
 
 
+KIRO_ARGUMENTS = """\
+Always consider user input before executing the following instuctions.  
+"""
+
+KIRO_STEERING = """\
+---
+Description: {description}
+---
+
+{prompt}
+"""
+
+
 def _transform_to_kiro(name, description, prompt):
-    raise NotImplementedError("Kiro not implemented yet")
-    # path = Path(f".kiro/command/{name}.md")
-    # agent_prompt = prompt.replace("[<arguments>]", KIRO_ARGUMENTS)
-    # md = KIRO_MD.format(description=description, prompt=agent_prompt)
-    # return path, md
+    path = Path(f".kiro/command/{name}.md")
+    agent_prompt = prompt.replace("[<arguments>]", KIRO_ARGUMENTS)
+    md = KIRO_STEERING.format(description=description, prompt=agent_prompt)
+    return path, md
 
 
 GEMINI_ARGUMENTS = """\
