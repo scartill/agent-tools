@@ -26,17 +26,17 @@ from typing import Any
 
 import httpx
 
-JULES_BASE_URL = "https://jules.googleapis.com/v1alpha/"
+JULES_BASE_URL = 'https://jules.googleapis.com/v1alpha/'
 
 # Session states from the Jules API
-STATE_QUEUED = "QUEUED"
-STATE_PLANNING = "PLANNING"
-STATE_AWAITING_PLAN_APPROVAL = "AWAITING_PLAN_APPROVAL"
-STATE_AWAITING_USER_FEEDBACK = "AWAITING_USER_FEEDBACK"
-STATE_IN_PROGRESS = "IN_PROGRESS"
-STATE_PAUSED = "PAUSED"
-STATE_FAILED = "FAILED"
-STATE_COMPLETED = "COMPLETED"
+STATE_QUEUED = 'QUEUED'
+STATE_PLANNING = 'PLANNING'
+STATE_AWAITING_PLAN_APPROVAL = 'AWAITING_PLAN_APPROVAL'
+STATE_AWAITING_USER_FEEDBACK = 'AWAITING_USER_FEEDBACK'
+STATE_IN_PROGRESS = 'IN_PROGRESS'
+STATE_PAUSED = 'PAUSED'
+STATE_FAILED = 'FAILED'
+STATE_COMPLETED = 'COMPLETED'
 
 # Terminal states (no more polling needed)
 TERMINAL_STATES = {
@@ -51,7 +51,7 @@ TERMINAL_STATES = {
 PR_STATES = {STATE_COMPLETED, STATE_IN_PROGRESS, STATE_AWAITING_USER_FEEDBACK}
 
 # Automation mode for auto-creating PRs
-AUTOMATION_MODE_AUTO_CREATE_PR = "AUTO_CREATE_PR"
+AUTOMATION_MODE_AUTO_CREATE_PR = 'AUTO_CREATE_PR'
 
 
 class JulesClient:
@@ -60,8 +60,8 @@ class JulesClient:
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
         self._headers = {
-            "X-Goog-Api-Key": api_key,
-            "Content-Type": "application/json",
+            'X-Goog-Api-Key': api_key,
+            'Content-Type': 'application/json',
         }
 
     # ------------------------------------------------------------------
@@ -77,7 +77,7 @@ class JulesClient:
             The parsed JSON response containing a list of sources.
         """
         with httpx.Client(base_url=JULES_BASE_URL, headers=self._headers) as client:
-            response = client.get("/sources", timeout=30)
+            response = client.get('/sources', timeout=30)
             response.raise_for_status()
             return response.json()
 
@@ -95,7 +95,7 @@ class JulesClient:
             The parsed JSON response containing the source details.
         """
         with httpx.Client(base_url=JULES_BASE_URL, headers=self._headers) as client:
-            response = client.get(f"/{source_name}", timeout=30)
+            response = client.get(f'/{source_name}', timeout=30)
             response.raise_for_status()
             return response.json()
 
@@ -139,24 +139,24 @@ class JulesClient:
             ``id``, ``state``, and other fields.
         """
         payload: dict[str, Any] = {
-            "prompt": prompt,
-            "sourceContext": {
-                "source": source,
-                "githubRepoContext": {
-                    "startingBranch": starting_branch,
+            'prompt': prompt,
+            'sourceContext': {
+                'source': source,
+                'githubRepoContext': {
+                    'startingBranch': starting_branch,
                 },
             },
-            "automationMode": automation_mode,
+            'automationMode': automation_mode,
         }
 
         if title:
-            payload["title"] = title
+            payload['title'] = title
 
         if require_plan_approval:
-            payload["requirePlanApproval"] = True
+            payload['requirePlanApproval'] = True
 
         with httpx.Client(base_url=JULES_BASE_URL, headers=self._headers) as client:
-            response = client.post("/sessions", json=payload, timeout=30)
+            response = client.post('/sessions', json=payload, timeout=30)
             response.raise_for_status()
             return response.json()
 
@@ -175,7 +175,7 @@ class JulesClient:
             PR information (if any) is in ``outputs`` array with ``pullRequest`` field.
         """
         with httpx.Client(base_url=JULES_BASE_URL, headers=self._headers) as client:
-            response = client.get(f"/{session_name}", timeout=30)
+            response = client.get(f'/{session_name}', timeout=30)
             response.raise_for_status()
             return response.json()
 
@@ -194,10 +194,10 @@ class JulesClient:
         """
         params = {}
         if page_size:
-            params["pageSize"] = page_size
+            params['pageSize'] = page_size
 
         with httpx.Client(base_url=JULES_BASE_URL, headers=self._headers) as client:
-            response = client.get("/sessions", params=params, timeout=30)
+            response = client.get('/sessions', params=params, timeout=30)
             response.raise_for_status()
             return response.json()
 
@@ -219,7 +219,7 @@ class JulesClient:
             The parsed JSON response (typically empty on success).
         """
         with httpx.Client(base_url=JULES_BASE_URL, headers=self._headers) as client:
-            response = client.post(f"/{session_name}:approvePlan", timeout=30)
+            response = client.post(f'/{session_name}:approvePlan', timeout=30)
             response.raise_for_status()
             return response.json()
 
@@ -238,9 +238,9 @@ class JulesClient:
         dict
             The parsed JSON response (typically empty on success).
         """
-        payload = {"prompt": prompt}
+        payload = {'prompt': prompt}
         with httpx.Client(base_url=JULES_BASE_URL, headers=self._headers) as client:
-            response = client.post(f"/{session_name}:sendMessage", json=payload, timeout=30)
+            response = client.post(f'/{session_name}:sendMessage', json=payload, timeout=30)
             response.raise_for_status()
             return response.json()
 
@@ -264,10 +264,10 @@ class JulesClient:
             The source resource name (e.g., "sources/github/owner/repo") or None.
         """
         sources = self.list_sources()
-        for source in sources.get("sources", []):
-            source_name = source.get("name", "")
-            github_repo = source.get("githubRepo", {})
-            if github_repo.get("owner") == owner and github_repo.get("repo") == repo:
+        for source in sources.get('sources', []):
+            source_name = source.get('name', '')
+            github_repo = source.get('githubRepo', {})
+            if github_repo.get('owner') == owner and github_repo.get('repo') == repo:
                 return source_name
         return None
 
@@ -284,14 +284,14 @@ class JulesClient:
         tuple
             A tuple of (pr_url, pr_number) or (None, None) if no PR exists.
         """
-        outputs = session.get("outputs", [])
+        outputs = session.get('outputs', [])
         for output in outputs:
-            pull_request = output.get("pullRequest", {})
+            pull_request = output.get('pullRequest', {})
             if pull_request:
-                url = pull_request.get("url", "")
+                url = pull_request.get('url', '')
                 # Extract PR number from URL like https://github.com/owner/repo/pull/123
                 try:
-                    pr_number = int(url.split("/")[-1])
+                    pr_number = int(url.split('/')[-1])
                     return url, pr_number
                 except (ValueError, IndexError):
                     return url, None
