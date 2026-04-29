@@ -12,7 +12,7 @@ Create a report of **recent** (commits that not exist in the immediate ancestor 
 
 Focus on the difference between spacification and implementation. If there are new changes in code that are not included in the specification - suggest an task-editing remediation action. If the code is not covered by specification at all, suggest a reverse-engineering remediation action.
 
-Put the report in a file named `gap-<number>.md` in the `.fvc` folder. No note overwrite existing files, generate a new number.
+Put the report in a file named `gap-<number>.md` in the `.scartill` folder. No note overwrite existing files, generate a new number.
 
 Paths, relative the the project root, to search for specs and tasks definition:
 - `specs`

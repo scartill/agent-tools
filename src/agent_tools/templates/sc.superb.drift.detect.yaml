@@ -1,0 +1,7 @@
+command:
+  compatible:
+    - gemini
+    - opencode
+  description: Detect a drift between manually modified code and existing specification. Works with /speckit.reconcile extension.
+  prompt-file: sc.superb.drift.detect.md
+

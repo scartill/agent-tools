@@ -4,4 +4,5 @@ command:
     - kiro
     - opencode
   description: A tailored propmt for /speckit.superb.critique
-  prompt-file: critique.md
+  prompt-file: sc.superb.critique.md
+
