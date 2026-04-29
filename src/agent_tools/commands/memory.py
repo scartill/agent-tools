@@ -167,6 +167,49 @@ def memory_show_cmd() -> None:
         console.print("[yellow]No factoids found in memory.[/yellow]")
 
 
+@memory_group.command("install")
+@click.option("--workspace", "-w", help="Optional workspace name to include in the instructions.")
+def memory_install_cmd(workspace: Optional[str]) -> None:
+    """Add agent instructions fragment to AGENTS.md."""
+    console = Console()
+    agents_file = Path("AGENTS.md")
+
+    start_marker = "<!-- pin mcp start -->"
+    stop_marker = "<!-- pin mcp stop -->"
+
+    instruction = (
+        "Before staring the first task, fetch all global and project factoids via Pin MCP "
+        "and use them as **important** instructions."
+    )
+    if workspace:
+        instruction += f" The Pin workspace for this project is `{workspace}`."
+
+    fragment = f"{start_marker}\n{instruction}\n{stop_marker}\n"
+
+    if agents_file.exists():
+        content = agents_file.read_text(encoding="utf-8")
+        if start_marker in content:
+            console.print("[yellow]AGENTS.md already contains the Pin MCP fragment. Skipping.[/yellow]")
+            return
+        # Append to existing file
+        try:
+            with agents_file.open("a", encoding="utf-8") as f:
+                # Ensure we start on a new line if the file doesn't end with one
+                if content and not content.endswith("\n"):
+                    f.write("\n")
+                f.write(f"\n{fragment}")
+            console.print("[green]Pin MCP fragment added to AGENTS.md.[/green]")
+        except Exception as e:
+            console.print(f"[red]Error updating AGENTS.md: {e}[/red]")
+    else:
+        # Create new file
+        try:
+            agents_file.write_text(fragment, encoding="utf-8")
+            console.print("[green]Created AGENTS.md with Pin MCP fragment.[/green]")
+        except Exception as e:
+            console.print(f"[red]Error creating AGENTS.md: {e}[/red]")
+
+
 @memory_group.command("mcp")
 def memory_mcp_cmd() -> None:
     """Launch the Memory MCP server (stdio)."""

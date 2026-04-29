@@ -73,3 +73,8 @@ agents:
 
 - Commands are grouped using Click groups.
 - Prefer `rich` for any user-facing outpud in the `README.md` (currently only `jules cr of GitHub Copilot review and apply logic in the orchestration commands.
+
+
+<!-- pin mcp start -->
+Before staring the first task, fetch all global and project factoids via Pin MCP and use them as **important** instructions.
+<!-- pin mcp stop -->

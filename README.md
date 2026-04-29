@@ -59,19 +59,27 @@ Manage and inspect your persistent factoids.
 # List all factoids grouped by location
 uv run agent-tools memory show
 
+# Add agent instructions fragment to AGENTS.md
+uv run agent-tools memory install [--workspace <name>]
+
 # Launch the MCP server
 uv run agent-tools memory mcp
 ```
 
 #### `memory show`
-
 Displays all stored factoids in a formatted view, grouped by:
-
 - **Global**: `~/.scartill/pin/`
 - **Workspaces**: `~/.scartill/pin/workspaces/<name>/`
 - **Local**: `./.pin/`
 
+#### `memory install`
+Ensures that `AGENTS.md` in the current directory contains instructions for agents to use the Memory MCP server.
+- Creates `AGENTS.md` if it doesn't exist.
+- Appends the instruction fragment if not already present.
+- Use `--workspace` or `-w` to specify a project-specific workspace.
+
 #### `memory mcp` (Server)
+
 
 Launches the Model Context Protocol (MCP) server that provides agents with tools to store and retrieve information.
 
