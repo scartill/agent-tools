@@ -1,6 +1,6 @@
 [project]
 name = "agent-tools"
-version = "0.0.4"
+version = "0.0.5"
 description = "CLI suite for AI-powered development workflows (Jules + GitHub Copilot)"
 readme = "README.md"
 authors = [
