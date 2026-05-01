@@ -1,7 +1,7 @@
 """Jules command group for agent-tools CLI.
 
 Usage example:
-    agent-tools jules create --repository owner/repo --branch main --agent bolt
+    agent-tools jules session create --repository owner/repo --branch main --agent bolt
 """
 
 import sys
@@ -18,11 +18,80 @@ from agent_tools.clients import jules_client
 
 @click.group('jules')
 def jules_group() -> None:
+    """Jules related commands."""
+    pass
+
+
+@jules_group.group('session')
+def session_group() -> None:
     """Jules session management commands."""
     pass
 
 
-@jules_group.command('create')
+@session_group.group('list')
+def session_list_group() -> None:
+    """List Jules sessions."""
+    pass
+
+
+@session_list_group.command('active')
+@click.pass_context
+def session_list_active_cmd(ctx: click.Context) -> None:
+    """List active (non-archived) Jules sessions."""
+    obj: dict[str, Any] = ctx.obj
+
+    try:
+        jules_api_key = config.get_jules_api_key(obj.get('jules_api_key'))
+    except ValueError as exc:
+        rich.print(f'[bold red]Configuration error:[/] {exc}')
+        sys.exit(1)
+
+    jules_client_instance = jules_client.JulesClient(api_key=jules_api_key)
+
+    try:
+        sessions_resp = jules_client_instance.list_sessions()
+        sessions = sessions_resp.get('sessions', [])
+    except Exception as exc:
+        rich.print(f'[bold red]Failed to list sessions:[/] {exc}')
+        sys.exit(1)
+
+    if not sessions:
+        rich.print('No sessions found.')
+        return
+
+    from rich.table import Table
+
+    table = Table(title='Active Jules Sessions')
+    table.add_column('ID', style='dim')
+    table.add_column('Title')
+    table.add_column('State')
+    table.add_column('PRs')
+
+    for s in sessions:
+        s_id = s.get('id', 'N/A')
+        title = s.get('title', 'Untitled')
+        state = s.get('state', 'UNKNOWN')
+
+        pr_links = []
+        for output in s.get('outputs', []):
+            pr = output.get('pullRequest')
+            if pr and pr.get('url'):
+                pr_links.append(pr.get('url'))
+
+        prs = ', '.join(pr_links) if pr_links else '-'
+
+        table.add_row(s_id, title, state, prs)
+
+    rich.print(table)
+
+
+@session_list_group.command('scheduled')
+def session_list_scheduled_cmd() -> None:
+    """List scheduled Jules sessions."""
+    rich.print('No scheduled sessions found (scheduling API not yet available).')
+
+
+@session_group.command('create')
 @click.option(
     '--repository',
     '-r',
