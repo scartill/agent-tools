@@ -14,6 +14,7 @@ import yaml
 
 from agent_tools import config
 from agent_tools.clients import jules_client
+from agent_tools.clients.jules_client import STATE_COMPLETED, STATE_FAILED
 
 
 @click.group('jules')
@@ -50,18 +51,20 @@ def session_list_active_cmd(ctx: click.Context) -> None:
 
     try:
         sessions_resp = jules_client_instance.list_sessions()
-        sessions = sessions_resp.get('sessions', [])
+        all_sessions = sessions_resp.get('sessions', [])
+        inactive_states = {STATE_COMPLETED, STATE_FAILED}
+        sessions = [s for s in all_sessions if s.get('state') not in inactive_states]
     except Exception as exc:
         rich.print(f'[bold red]Failed to list sessions:[/] {exc}')
         sys.exit(1)
 
     if not sessions:
-        rich.print('No sessions found.')
+        rich.print('No active sessions found.')
         return
 
     from rich.table import Table
 
-    table = Table(title='Active Jules Sessions')
+    table = Table(title='Active Jules Sessions (excluding completed/failed)')
     table.add_column('ID', style='dim')
     table.add_column('Title')
     table.add_column('State')
@@ -200,3 +203,44 @@ def jules_create_cmd(
     rich.print('[bold green]Session created successfully![/]')
     rich.print(f'  Session ID: [dim]{session_id}[/]')
     rich.print(f'  Session name: [dim]{session_name}[/]')
+
+
+@jules_group.command('create', deprecated=True)
+@click.option(
+    '--repository',
+    '-r',
+    required=True,
+    help='Target GitHub repository in owner/repo format.',
+    metavar='OWNER/REPO',
+)
+@click.option(
+    '--branch',
+    '-b',
+    required=True,
+    help='Target branch name for Jules to work against.',
+    metavar='BRANCH',
+)
+@click.option(
+    '--agent',
+    '-a',
+    required=True,
+    help='Agent name whose prompt is used (defined in prompts.yaml).',
+    metavar='AGENT',
+)
+@click.option(
+    '--title',
+    '-t',
+    default=None,
+    help='Optional title for the session.',
+    metavar='TITLE',
+)
+@click.pass_context
+def jules_create_legacy_cmd(
+    ctx: click.Context,
+    repository: str,
+    branch: str,
+    agent: str,
+    title: str | None,
+) -> None:
+    """Create a new Jules session. Deprecated: use 'jules session create' instead."""
+    ctx.invoke(jules_create_cmd, repository=repository, branch=branch, agent=agent, title=title)
