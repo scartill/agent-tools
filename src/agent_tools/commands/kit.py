@@ -99,10 +99,12 @@ def _transform_to_opencode(name, description, prompt):
 
 
 KIRO_ARGUMENTS = """\
-Always consider user input before executing the following instuctions.  
+```text
+$ARGUMENTS
+```
 """
 
-KIRO_STEERING = """\
+KIRO_PROMPT = """\
 ---
 Description: {description}
 ---
@@ -112,9 +114,9 @@ Description: {description}
 
 
 def _transform_to_kiro(name, description, prompt):
-    path = Path(f'.kiro/command/{name}.md')
+    path = Path(f'.kiro/prompts/{name}.md')
     agent_prompt = prompt.replace('[<arguments>]', KIRO_ARGUMENTS)
-    md = KIRO_STEERING.format(description=description, prompt=agent_prompt)
+    md = KIRO_PROMPT.format(description=description, prompt=agent_prompt)
     return path, md
 
 
