@@ -1,6 +1,6 @@
 # agent-tools 🛠️
 
-`agent-tools` is a Python CLI suite designed to orchestrate AI-powered development workflows. It bridges the gap between high-level AI orchestration (like **Jules**) and local development environments, enabling automated coding sessions and performance optimizations.
+`agent-tools` is a Python CLI suite designed to help with AI-powered development workflows.
 
 ## Features
 
