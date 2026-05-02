@@ -4,7 +4,7 @@ version = "0.0.6"
 description = "CLI suite for AI-powered development workflows (Jules + GitHub Copilot)"
 readme = "README.md"
 authors = [
-    { name = "copilot-swe-agent[bot]", email = "198982749+Copilot@users.noreply.github.com" }
+    { name = "Boris Resnick", email = "boris.resnick@gmail.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-agent-tools = "agent_tools.cli:main"
+agent-tools = "agent_tools.cli:cli"
 
 [build-system]
 requires = ["hatchling"]
