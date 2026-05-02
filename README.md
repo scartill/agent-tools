@@ -1,11 +1,10 @@
 # agent-tools 🛠️
 
-`agent-tools` is a Python CLI suite designed to orchestrate AI-powered development workflows. It bridges the gap between high-level AI orchestration (like **Jules**) and local development environments, enabling automated coding sessions, performance optimizations, and persistent memory for AI agents.
+`agent-tools` is a Python CLI suite designed to orchestrate AI-powered development workflows. It bridges the gap between high-level AI orchestration (like **Jules**) and local development environments, enabling automated coding sessions and performance optimizations.
 
 ## Features
 
 - **Jules Integration**: Create and manage Jules coding sessions directly from your terminal.
-- **Persistent Memory (MCP)**: A Model Context Protocol (MCP) server for agents to "pin" and "recall" factoids across different scopes (Global, Workspace, Project).
 - **Agent Prompts**: Define specialized AI agents (like `bolt` for performance) with custom system prompts in a simple YAML configuration.
 
 ## Installation
@@ -51,76 +50,6 @@ agents:
 
 ## Usage
 
-### Memory Management
-
-Manage and inspect your persistent factoids.
-
-```bash
-# List all factoids grouped by location
-uv run agent-tools memory show
-
-# Add agent instructions fragment to AGENTS.md
-uv run agent-tools memory install [--workspace <name>]
-
-# Launch the MCP server
-uv run agent-tools memory mcp
-```
-
-#### `memory show`
-Displays all stored factoids in a formatted view, grouped by:
-- **Global**: `~/.scartill/pin/`
-- **Workspaces**: `~/.scartill/pin/workspaces/<name>/`
-- **Local**: `./.pin/`
-
-#### `memory install`
-Ensures that `AGENTS.md` in the current directory contains instructions for agents to use the Memory MCP server.
-- Creates `AGENTS.md` if it doesn't exist.
-- Appends the instruction fragment if not already present.
-- Use `--workspace` or `-w` to specify a project-specific workspace.
-
-#### `memory mcp` (Server)
-Launches the Model Context Protocol (MCP) server that provides agents with tools to store and retrieve information.
-
-### MCP Configuration Example
-
-To use `agent-tools` as an MCP server in applications like Claude Desktop or other MCP-compatible clients, it is recommended to install it globally using `uv`.
-
-#### 1. Install the tool
-
-```bash
-uv tool install --editable .  # For local development
-# OR
-uv tool install agent-tools   # Once published
-```
-
-#### 2. Configure your client
-
-Add this (or similar) to your MCP config JSON:
-
-```json
-{
-  "mcpServers": {
-    "agent-tools-memory": {
-      "command": "agent-tools",
-      "args": ["memory", "mcp"]
-    }
-  }
-}
-```
-
-#### MCP Tools:
-
-1. **pin**: Store a factoid.
-   - `factoid_name`: A unique name for the factoid.
-   - `factoid`: The content to store.
-   - `location`: Scoped storage location:
-     - `global`: Stored in `~/.scartill/pin/` (available everywhere).
-     - `workspace/<name>`: Stored in `~/.scartill/pin/workspaces/<name>/`.
-     - `project`: Stored in `./.pin/` (local to the current directory).
-2. **recall**: Retrieve stored factoids.
-   - `workspace`: (Optional) Name of the workspace to include.
-   - **Returns**: A concatenation of Global factoids, Workspace factoids (if specified), and Project factoids (if present).
-
 ### Jules Commands
 
 Create an automated coding session.
@@ -146,7 +75,6 @@ uv run agent-tools jules create \
 - `src/agent_tools/config.py`: Configuration and environment management.
 - `src/agent_tools/clients/`: API clients for Jules and GitHub.
 - `src/agent_tools/commands/`: Implementation logic for CLI commands.
-  - `memory.py`: Implementation of the Memory MCP server.
 - `kit/`: Reusable tool definitions and prompts for agent-led workflows.
 
 ## Development
