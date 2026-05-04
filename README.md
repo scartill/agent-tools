@@ -21,54 +21,7 @@ cd agent-tools
 uv sync
 ```
 
-## Configuration
-
-The tool requires API credentials to interact with external services. You can provide these via environment variables, a `.env` file, or CLI flags.
-
-### Credentials
-
-- `JULES_API_KEY`: Required for interacting with the Jules API.
-- `GITHUB_PAT`: GitHub Personal Access Token for repository interactions.
-
-Example `.env` file:
-
-```env
-JULES_API_KEY=your_jules_key
-GITHUB_PAT=your_github_token
-```
-
-### Agent Prompts (`prompts.yaml`)
-
-Define your AI agents in `prompts.yaml` in the project root:
-
-```yaml
-agents:
-  bolt:
-    prompt: |
-      You are "Bolt" ⚡ - a performance-obsessed agent...
-      (Full prompt text here)
-```
-
 ## Usage
-
-### Jules Commands
-
-Create an automated coding session.
-
-```bash
-uv run agent-tools jules create \
-  --repository owner/repo \
-  --branch feature-branch \
-  --agent bolt \
-  --title "Performance optimization for API"
-```
-
-**Options:**
-
-- `--repository`, `-r`: Target GitHub repository (owner/repo).
-- `--branch`, `-b`: Branch for Jules to work on.
-- `--agent`, `-a`: Name of the agent defined in `prompts.yaml`.
-- `--title`, `-t`: (Optional) Title for the session.
 
 ### Kit Commands
 
@@ -119,6 +72,53 @@ The command writes the transformed prompt file to the agent's conventional locat
 |-----------|------------------|-------------|
 | `sc.superb.critique` | `opencode`, `kiro`, `gemini` | Tailored prompt for `/speckit.superb.critique` |
 | `sc.superb.drift.detect` | `opencode`, `gemini` | Detect drift between manually modified code and existing specification |
+
+### Jules Commands
+
+Create an automated coding session.
+
+```bash
+uv run agent-tools jules create \
+  --repository owner/repo \
+  --branch feature-branch \
+  --agent bolt \
+  --title "Performance optimization for API"
+```
+
+**Options:**
+
+- `--repository`, `-r`: Target GitHub repository (owner/repo).
+- `--branch`, `-b`: Branch for Jules to work on.
+- `--agent`, `-a`: Name of the agent defined in `prompts.yaml`.
+- `--title`, `-t`: (Optional) Title for the session.
+
+## Configuration
+
+The tool requires API credentials to interact with external services. You can provide these via environment variables, a `.env` file, or CLI flags.
+
+### Credentials
+
+- `JULES_API_KEY`: Required for interacting with the Jules API.
+- `GITHUB_PAT`: GitHub Personal Access Token for repository interactions.
+
+Example `.env` file:
+
+```env
+JULES_API_KEY=your_jules_key
+GITHUB_PAT=your_github_token
+```
+
+### Agent Prompts (`prompts.yaml`)
+
+Define your AI agents in `prompts.yaml` in the project root:
+
+```yaml
+agents:
+  bolt:
+    prompt: |
+      You are "Bolt" ⚡ - a performance-obsessed agent...
+      (Full prompt text here)
+```
 
 ## Project Structure
 
