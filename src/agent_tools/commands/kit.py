@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 import click
 import rich
@@ -90,10 +91,13 @@ descriptions: {description}
 {prompt}
 """
 
+OPENCODE_CMDREF = '/{name} command'
+
 
 def _transform_to_opencode(name, description, prompt):
     path = Path(f'.opencode/command/{name}.md')
     agent_prompt = prompt.replace('[<arguments>]', OPENCODE_ARGUMENTS)
+    agent_prompt = _transform_cmdref(agent_prompt, OPENCODE_CMDREF)
     md = OPENCODE_MD.format(description=description, prompt=agent_prompt)
     return path, md
 
@@ -112,10 +116,13 @@ Description: {description}
 {prompt}
 """
 
+KIRO_CMDREF = '`.kiro/prompts/{name}` prompt'
+
 
 def _transform_to_kiro(name, description, prompt):
     path = Path(f'.kiro/prompts/{name}.md')
     agent_prompt = prompt.replace('[<arguments>]', KIRO_ARGUMENTS)
+    agent_prompt = _transform_cmdref(agent_prompt, KIRO_CMDREF)
     md = KIRO_PROMPT.format(description=description, prompt=agent_prompt)
     return path, md
 
@@ -132,9 +139,16 @@ prompt = """
 """
 '''
 
+GEMINI_CMDREF = '/{name} command'
+
 
 def _transform_to_gemini(name, description, prompt):
     path = Path(f'.gemini/commands/{name}.toml')
     agent_prompt = prompt.replace('[<arguments>]', GEMINI_ARGUMENTS)
+    agent_prompt = _transform_cmdref(agent_prompt, GEMINI_CMDREF)
     md = GEMINI_TOML.format(description=description, prompt=agent_prompt)
     return path, md
+
+
+def _transform_cmdref(prompt, cmdref):
+    return re.sub(r'{{CMDREF:([^}]+)}}', lambda m: cmdref.format(name=m.group(1)), prompt)
