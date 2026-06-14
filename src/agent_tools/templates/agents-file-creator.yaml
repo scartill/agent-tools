@@ -1,0 +1,6 @@
+command:
+  compatible:
+    - opencode
+    - kiro
+  description: Create an AGENTS.md file from scratch
+  prompt-file: agents-file-creator.md
